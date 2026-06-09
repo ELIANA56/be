@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './components/auth/Login';
+import Login from './components/auth/AuthPage';
 import Register from './components/auth/Register';
 import Home from './components/dashboard/Home';
 import Profile from './components/auth/Profile';
@@ -12,8 +12,8 @@ function App() {
     <Router>
       <Routes>
         {/* Pages SANS Sidebar/Navbar */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/" element={<Login />} />
+        
         
         {/* Pages AVEC Sidebar/Navbar */}
         <Route path="/home" element={<Layout><Home /></Layout>} />
