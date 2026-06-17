@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isProfileComplete, profileFormFromUser, notifyProfileUpdated } from '../../utils/profileUtils';
+import { clearAuthSession } from '../../utils/authSession';
 
 const GOAL_OPTIONS = [
   { value: 'הרזיה', label: 'הרזיה (Weight loss)' },
@@ -31,6 +32,9 @@ const Profile = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [hasPassword, setHasPassword] = useState(true);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const loadProfile = useCallback(async () => {
     if (!userId) {
@@ -141,6 +145,25 @@ const Profile = () => {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!userId || deleteConfirmText !== 'DELETE') return;
+    setDeleting(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/user/${userId}`, { method: 'DELETE' });
+      const data = res.headers.get('content-type')?.includes('application/json')
+        ? await res.json()
+        : {};
+      if (!res.ok) throw new Error(data.error || 'Failed to delete account.');
+      clearAuthSession();
+      navigate('/login', { replace: true });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -285,6 +308,59 @@ const Profile = () => {
           </button>
         )}
       </div>
+
+      {!setupMode && (
+        <section style={styles.dangerCard}>
+          <h3 style={styles.dangerTitle}>Delete account</h3>
+          <p style={styles.dangerText}>
+            Permanently delete your account and all your data (meals, workouts, recipes, and profile).
+            This cannot be undone.
+          </p>
+          {!showDeleteConfirm ? (
+            <button
+              type="button"
+              style={styles.dangerBtn}
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              Delete my account
+            </button>
+          ) : (
+            <div style={styles.dangerConfirm}>
+              <label style={styles.field}>
+                <span style={styles.label}>Type DELETE to confirm</span>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  style={styles.input}
+                />
+              </label>
+              <div style={styles.dangerActions}>
+                <button
+                  type="button"
+                  style={styles.secondaryBtn}
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmText('');
+                  }}
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  style={styles.dangerBtn}
+                  onClick={handleDeleteAccount}
+                  disabled={deleting || deleteConfirmText !== 'DELETE'}
+                >
+                  {deleting ? 'Deleting...' : 'Permanently delete'}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 };
@@ -424,6 +500,27 @@ const styles = {
     borderRadius: '10px',
     marginBottom: '16px',
     fontSize: '0.9rem',
+  },
+  dangerCard: {
+    marginTop: '32px',
+    padding: '20px',
+    borderRadius: '14px',
+    border: '1px solid #fecaca',
+    background: '#fff5f5',
+  },
+  dangerTitle: { margin: '0 0 8px', fontSize: '1rem', fontWeight: 600, color: '#b91c1c' },
+  dangerText: { margin: '0 0 16px', fontSize: '0.9rem', color: '#7f1d1d', lineHeight: 1.5 },
+  dangerConfirm: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  dangerActions: { display: 'flex', gap: '12px', justifyContent: 'flex-end' },
+  dangerBtn: {
+    padding: '10px 24px',
+    borderRadius: '10px',
+    border: 'none',
+    background: '#dc2626',
+    color: '#fff',
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontSize: '0.95rem',
   },
 };
 

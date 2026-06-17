@@ -3,6 +3,11 @@ export function saveAuthSession({ token, userId }) {
   localStorage.setItem('userId', String(userId));
 }
 
+export function clearAuthSession() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('userId');
+}
+
 export async function loginWithGoogle(credential) {
   const response = await fetch('/api/auth/google', {
     method: 'POST',
