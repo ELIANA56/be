@@ -6,7 +6,7 @@ const Profile = () => {
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
-    fetch(`http://localhost:3001/api/user/${userId}`)
+    fetch(`/api/user/${userId}`)
       .then(res => res.json())
       .then(data => setUser(data))
       .catch(err => console.error("Erreur:", err));

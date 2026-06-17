@@ -18,6 +18,7 @@ const Login = () => {
     });
   };
 
+  // 1. התחברות רגילה (אימייל וסיסמה)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
@@ -25,11 +26,20 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      // שימוש בנתיב יחסי בזכות ה-Proxy
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
+
+      // בדיקה אם השרת החזיר HTML בטעות
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("שרת החזיר פורמט לא תקין בהתחברות:", text);
+        throw new Error("שגיאת מערכת (השרת לא החזיר JSON).");
+      }
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Login failed');
@@ -44,6 +54,7 @@ const Login = () => {
     }
   };
 
+  // 2. התחברות עם גוגל (Firebase)
   const handleGoogleSignIn = async () => {
     setMessage('');
     setError('');
@@ -55,7 +66,8 @@ const Login = () => {
       const user = result.user;
       const idToken = await user.getIdToken();
 
-      const response = await fetch('http://localhost:3001/api/auth/firebase/verify', {
+      // שימוש בנתיב יחסי בזכות ה-Proxy
+      const response = await fetch('/api/auth/firebase/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -67,15 +79,26 @@ const Login = () => {
         }),
       });
 
+      // בדיקה חכמה לפני המרה ל-JSON למניעת קריסות
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("שרת החזיר פורמט לא תקין באימות גוגל:", text);
+        throw new Error("השרת החזיר שגיאה (לא JSON). בדקי את ה-Console.");
+      }
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Google login failed');
 
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('userId', data.userId);
       localStorage.setItem('firebaseUID', user.uid);
-      localStorage.setItem('firebaseToken', idToken);
+      localStorage.setItem('firebaseToken', data.token || idToken);
       localStorage.setItem('userEmail', user.email);
       localStorage.setItem('userName', user.displayName || '');
       navigate('/home');
     } catch (err) {
+      console.error("פרטי השגיאה המלאים:", err);
       setError(err.message || 'Google login failed.');
     } finally {
       setLoading(false);
