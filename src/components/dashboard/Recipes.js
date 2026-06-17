@@ -30,42 +30,141 @@ const DietTags = ({ recipe }) => (
   </div>
 );
 
-const RecipeDetail = ({ recipe, onBack }) => (
+const RecipeDetail = ({
+  recipe,
+  userId,
+  onBack,
+  onUpdated,
+  onDeleted,
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState({
+    Title: recipe.Recipe_Name || recipe.Title || '',
+    Meal_Type: recipe.Meal_Type || 'Lunch',
+    Prep_Time: recipe.Prep_Time || '',
+    Calories_Per_Serving: recipe.Calories ?? recipe.Calories_Per_Serving ?? '',
+    Protein: recipe.Protein ?? '',
+    Carbs: recipe.Carbs ?? '',
+    Fats: recipe.Fats ?? '',
+    Why_It_Fits: recipe.Why_It_Fits || '',
+    Gluten_Free: recipe.Gluten_Free || false,
+    Vegetarian: recipe.Vegetarian || false,
+    Kosher: recipe.Kosher || false,
+    Ingredients: (recipe.Ingredients || []).join('\n'),
+    Instructions: (recipe.Instructions || []).join('\n'),
+  });
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/recipes/user/${userId}/${recipe.Recipe_ID}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          Title: form.Title,
+          Meal_Type: form.Meal_Type,
+          Prep_Time: form.Prep_Time,
+          Calories_Per_Serving: Number(form.Calories_Per_Serving),
+          Protein: form.Protein !== '' ? Number(form.Protein) : null,
+          Carbs: form.Carbs !== '' ? Number(form.Carbs) : null,
+          Fats: form.Fats !== '' ? Number(form.Fats) : null,
+          Why_It_Fits: form.Why_It_Fits,
+          Gluten_Free: form.Gluten_Free,
+          Vegetarian: form.Vegetarian,
+          Kosher: form.Kosher,
+          Ingredients: form.Ingredients,
+          Instructions: form.Instructions,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Update failed.');
+      setIsEditing(false);
+      onUpdated(data.recipe);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Delete this recipe?')) return;
+    try {
+      const res = await fetch(`/api/recipes/user/${userId}/${recipe.Recipe_ID}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed.');
+      onDeleted();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
   <div>
     <button type="button" onClick={onBack} style={styles.backBtn}>← Back to recipes</button>
     <div style={styles.recipeCard}>
-      <h2 style={styles.recipeTitle}>{recipe.Recipe_Name || recipe.Title}</h2>
-      <p style={styles.meta}>
-        {recipe.Meal_Type && <span>{recipe.Meal_Type} · </span>}
-        {recipe.Created_At && <span>{formatDate(recipe.Created_At)}</span>}
-      </p>
-      {recipe.Prep_Time && <p style={styles.prep}>Prep time: {recipe.Prep_Time}</p>}
-      <div style={styles.macros}>
-        <span>{recipe.Calories ?? recipe.Calories_Per_Serving ?? '—'} kcal</span>
-        {recipe.Protein != null && <span>P: {recipe.Protein}g</span>}
-        {recipe.Carbs != null && <span>C: {recipe.Carbs}g</span>}
-        {recipe.Fats != null && <span>F: {recipe.Fats}g</span>}
+      <div style={styles.detailActions}>
+        {!isEditing ? (
+          <>
+            <button type="button" onClick={() => setIsEditing(true)} style={styles.editBtn}>Edit</button>
+            <button type="button" onClick={handleDelete} style={styles.deleteBtn}>Delete</button>
+          </>
+        ) : (
+          <>
+            <button type="button" onClick={handleSave} disabled={saving} style={styles.saveBtn}>{saving ? 'Saving…' : 'Save'}</button>
+            <button type="button" onClick={() => setIsEditing(false)} style={styles.cancelBtn}>Cancel</button>
+          </>
+        )}
       </div>
-      <DietTags recipe={recipe} />
-      {recipe.Source_Ingredients?.length > 0 && (
-        <p style={styles.source}>From your fridge: {recipe.Source_Ingredients.join(', ')}</p>
+
+      {error && <p style={styles.error}>{error}</p>}
+
+      {!isEditing ? (
+        <>
+          <h2 style={styles.recipeTitle}>{recipe.Recipe_Name || recipe.Title}</h2>
+          <p style={styles.meta}>
+            {recipe.Meal_Type && <span>{recipe.Meal_Type} · </span>}
+            {recipe.Created_At && <span>{formatDate(recipe.Created_At)}</span>}
+          </p>
+          {recipe.Prep_Time && <p style={styles.prep}>Prep time: {recipe.Prep_Time}</p>}
+          <div style={styles.macros}>
+            <span>{recipe.Calories ?? recipe.Calories_Per_Serving ?? '—'} kcal</span>
+            {recipe.Protein != null && <span>P: {recipe.Protein}g</span>}
+            {recipe.Carbs != null && <span>C: {recipe.Carbs}g</span>}
+            {recipe.Fats != null && <span>F: {recipe.Fats}g</span>}
+          </div>
+          <DietTags recipe={recipe} />
+          {recipe.Source_Ingredients?.length > 0 && (
+            <p style={styles.source}>From your fridge: {recipe.Source_Ingredients.join(', ')}</p>
+          )}
+          {recipe.Why_It_Fits && <p style={styles.why}>{recipe.Why_It_Fits}</p>}
+          <h4>Ingredients</h4>
+          <ul>{(recipe.Ingredients || []).map((ing, i) => <li key={i}>{ing}</li>)}</ul>
+          <h4>Instructions</h4>
+          <ol>{(recipe.Instructions || []).map((step, i) => <li key={i} style={{ marginBottom: 8 }}>{step}</li>)}</ol>
+        </>
+      ) : (
+        <div style={styles.editForm}>
+          <label style={styles.editLabel}>Title<input value={form.Title} onChange={(e) => setForm({ ...form, Title: e.target.value })} style={styles.editInput} /></label>
+          <label style={styles.editLabel}>Meal<select value={form.Meal_Type} onChange={(e) => setForm({ ...form, Meal_Type: e.target.value })} style={styles.editInput}>{MEAL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
+          <label style={styles.editLabel}>Prep time<input value={form.Prep_Time} onChange={(e) => setForm({ ...form, Prep_Time: e.target.value })} style={styles.editInput} /></label>
+          <label style={styles.editLabel}>Calories<input type="number" value={form.Calories_Per_Serving} onChange={(e) => setForm({ ...form, Calories_Per_Serving: e.target.value })} style={styles.editInput} /></label>
+          <label style={styles.editLabel}>Ingredients (one per line)<textarea value={form.Ingredients} onChange={(e) => setForm({ ...form, Ingredients: e.target.value })} style={styles.textarea} rows={4} /></label>
+          <label style={styles.editLabel}>Instructions (one per line)<textarea value={form.Instructions} onChange={(e) => setForm({ ...form, Instructions: e.target.value })} style={styles.textarea} rows={4} /></label>
+          <div style={styles.row}>
+            <label><input type="checkbox" checked={form.Gluten_Free} onChange={(e) => setForm({ ...form, Gluten_Free: e.target.checked })} /> Gluten-free</label>
+            <label><input type="checkbox" checked={form.Vegetarian} onChange={(e) => setForm({ ...form, Vegetarian: e.target.checked })} /> Vegetarian</label>
+            <label><input type="checkbox" checked={form.Kosher} onChange={(e) => setForm({ ...form, Kosher: e.target.checked })} /> Kosher</label>
+          </div>
+        </div>
       )}
-      {recipe.Why_It_Fits && <p style={styles.why}>{recipe.Why_It_Fits}</p>}
-      <h4>Ingredients</h4>
-      <ul>
-        {(recipe.Ingredients || []).map((ing, i) => (
-          <li key={i}>{ing}</li>
-        ))}
-      </ul>
-      <h4>Instructions</h4>
-      <ol>
-        {(recipe.Instructions || []).map((step, i) => (
-          <li key={i} style={{ marginBottom: 8 }}>{step}</li>
-        ))}
-      </ol>
     </div>
   </div>
-);
+  );
+};
 
 const Recipes = () => {
   const userId = localStorage.getItem('userId');
@@ -221,9 +320,19 @@ const Recipes = () => {
       <div style={styles.page}>
         <RecipeDetail
           recipe={selectedRecipe}
+          userId={userId}
           onBack={() => {
             setSelectedRecipe(null);
             setView('list');
+          }}
+          onUpdated={(updated) => {
+            setSelectedRecipe(updated);
+            loadSavedRecipes();
+          }}
+          onDeleted={() => {
+            setSelectedRecipe(null);
+            setView('list');
+            loadSavedRecipes();
           }}
         />
       </div>
@@ -494,6 +603,14 @@ const styles = {
   macros: { display: 'flex', gap: 16, marginBottom: 12, fontWeight: 600 },
   source: { color: '#555', fontSize: '0.9rem' },
   why: { fontStyle: 'italic', color: '#555', marginBottom: 16 },
+  detailActions: { display: 'flex', gap: '8px', marginBottom: '16px' },
+  editBtn: { padding: '6px 12px', border: '1px solid #007bff', borderRadius: '6px', background: '#fff', color: '#007bff', cursor: 'pointer' },
+  deleteBtn: { padding: '6px 12px', border: '1px solid #dc3545', borderRadius: '6px', background: '#fff', color: '#dc3545', cursor: 'pointer' },
+  saveBtn: { padding: '6px 12px', border: 'none', borderRadius: '6px', background: '#007bff', color: '#fff', cursor: 'pointer' },
+  cancelBtn: { padding: '6px 12px', border: '1px solid #ccc', borderRadius: '6px', background: '#fff', cursor: 'pointer' },
+  editForm: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  editLabel: { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px' },
+  editInput: { padding: '8px', borderRadius: '6px', border: '1px solid #ccc' },
 };
 
 export default Recipes;

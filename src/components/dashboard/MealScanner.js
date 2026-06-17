@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getToday } from '../../utils/dateFormat';
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -35,11 +36,66 @@ function analysisToForm(analysis) {
   };
 }
 
-function MealScanner({ onMealLogged }) {
+function MealScanner({ onMealLogged, loggedTodayTypes = [] }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [mealType, setMealType] = useState('Lunch');
+  const [loggedTypes, setLoggedTypes] = useState(loggedTodayTypes);
+  const [typesLoaded, setTypesLoaded] = useState(false);
+  const [mealType, setMealType] = useState('');
+
+  const isTypeTaken = (type) => type !== 'Snack' && loggedTypes.includes(type);
+
+  const pickFirstAvailable = (taken) => {
+    const isTaken = (type) => type !== 'Snack' && taken.includes(type);
+    return MEAL_TYPES.find((t) => !isTaken(t)) || 'Snack';
+  };
+
+  const loadTodayTypes = useCallback(async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      setTypesLoaded(true);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/meals/today-types/${userId}?date=${getToday()}`);
+      const data = res.headers.get('content-type')?.includes('application/json')
+        ? await res.json()
+        : { logged: [] };
+      const taken = Array.isArray(data.logged) ? data.logged : [];
+      setLoggedTypes(taken);
+      setMealType((current) => {
+        const takenCheck = (type) => type !== 'Snack' && taken.includes(type);
+        if (current && !takenCheck(current)) return current;
+        return pickFirstAvailable(taken);
+      });
+    } catch (err) {
+      console.error('Error loading today meal types:', err);
+    } finally {
+      setTypesLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTodayTypes();
+  }, [loadTodayTypes]);
+
+  useEffect(() => {
+    if (loggedTodayTypes.length > 0) {
+      setLoggedTypes(loggedTodayTypes);
+      setMealType((current) => {
+        const isTaken = (type) => type !== 'Snack' && loggedTodayTypes.includes(type);
+        if (current && !isTaken(current)) return current;
+        return pickFirstAvailable(loggedTodayTypes);
+      });
+    }
+  }, [loggedTodayTypes]);
+
+  useEffect(() => {
+    if (typesLoaded && mealType && isTypeTaken(mealType)) {
+      setMealType(pickFirstAvailable(loggedTypes));
+    }
+  }, [typesLoaded, loggedTypes, mealType]);
   const [preview, setPreview] = useState(null);
   const [needsManual, setNeedsManual] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -60,6 +116,12 @@ function MealScanner({ onMealLogged }) {
     const userId = localStorage.getItem('userId');
     if (!userId) {
       setError('Please sign in to scan a meal.');
+      return;
+    }
+
+    if (isTypeTaken(mealType)) {
+      setError(`You already logged ${mealType} today. Pick Snack or another available meal type before uploading.`);
+      event.target.value = '';
       return;
     }
 
@@ -137,6 +199,11 @@ function MealScanner({ onMealLogged }) {
       return;
     }
 
+    if (isTypeTaken(mealType)) {
+      setError(`You already logged ${mealType} today. Choose a different meal type.`);
+      return;
+    }
+
     setSaving(true);
     setError('');
 
@@ -147,6 +214,7 @@ function MealScanner({ onMealLogged }) {
         body: JSON.stringify({
           User_ID: userId,
           Meal_Type: mealType,
+          Log_Date: getToday(),
           Meal_Name: form.Meal_Name.trim(),
           Description: form.Description,
           Total_Calories: Number(form.Total_Calories),
@@ -161,6 +229,7 @@ function MealScanner({ onMealLogged }) {
       if (!response.ok) throw new Error(data.error || 'Failed to save meal');
 
       resetPreview();
+      await loadTodayTypes();
       if (onMealLogged) onMealLogged(data);
     } catch (err) {
       setError(err.message || 'Unable to save the meal.');
@@ -176,7 +245,13 @@ function MealScanner({ onMealLogged }) {
   return (
     <div style={styles.container}>
       <h2 style={styles.title}>Scan a meal</h2>
-      <p style={styles.subtitle}>Gemini analyzes your photo. Review, edit if needed, then save.</p>
+      <p style={styles.subtitle}>
+        Pick your meal type first. Breakfast, Lunch, and Dinner — once per day. Snacks anytime.
+      </p>
+
+      {!typesLoaded ? (
+        <p style={styles.hint}>Checking which meals you already logged today…</p>
+      ) : null}
 
       <div style={styles.controls}>
         <label style={styles.label}>
@@ -185,21 +260,29 @@ function MealScanner({ onMealLogged }) {
             value={mealType}
             onChange={(e) => setMealType(e.target.value)}
             style={styles.select}
-            disabled={loading || saving}
+            disabled={loading || saving || !typesLoaded}
           >
             {MEAL_TYPES.map((type) => (
-              <option key={type} value={type}>{type}</option>
+              <option key={type} value={type} disabled={isTypeTaken(type)}>
+                {type}{isTypeTaken(type) ? ' — already logged today' : ''}
+              </option>
             ))}
           </select>
         </label>
 
-        <label style={styles.uploadButton}>
+        <label
+          style={{
+            ...styles.uploadButton,
+            opacity: !typesLoaded || isTypeTaken(mealType) || loading || saving ? 0.5 : 1,
+            pointerEvents: !typesLoaded || isTypeTaken(mealType) || loading || saving ? 'none' : 'auto',
+          }}
+        >
           {loading ? 'Analyzing...' : '📷 Choose a photo'}
           <input
             type="file"
             accept="image/*"
             onChange={handleFileChange}
-            disabled={loading || saving}
+            disabled={loading || saving || !typesLoaded || isTypeTaken(mealType)}
             style={{ display: 'none' }}
           />
         </label>
@@ -379,7 +462,8 @@ const styles = {
     padding: '24px',
   },
   title: { margin: '0 0 8px 0', color: '#212529' },
-  subtitle: { margin: '0 0 20px 0', color: '#6c757d', fontSize: '14px' },
+  subtitle: { margin: '0 0 12px 0', color: '#6c757d', fontSize: '14px' },
+  hint: { margin: '0 0 16px 0', fontSize: '13px', color: '#007bff', backgroundColor: '#e8f4fd', padding: '10px 12px', borderRadius: '8px' },
   controls: { display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' },
   label: { display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '14px', color: '#495057' },
   select: { padding: '10px', borderRadius: '8px', border: '1px solid #ced4da', fontSize: '14px' },

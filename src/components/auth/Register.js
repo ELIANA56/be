@@ -72,7 +72,12 @@ const Register = () => {
           <option value="Female">Female</option>
         </select>
 
-        <input name="Goal_Type" placeholder="Goal (e.g. Weight loss)" onChange={handleChange} required style={styles.input} />
+        <select name="Goal_Type" onChange={handleChange} required style={styles.input}>
+          <option value="">Goal</option>
+          <option value="הרזיה">הרזיה (Weight loss)</option>
+          <option value="מסה">מסה (Mass gain)</option>
+          <option value="תחזוקה">תחזוקה (Maintenance)</option>
+        </select>
 
         <label>Activity level:</label>
         <select name="Activity_Factor" onChange={handleChange} style={styles.input}>
