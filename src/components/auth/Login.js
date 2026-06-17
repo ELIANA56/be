@@ -1,26 +1,25 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { auth } from '../../firebase';
+import { Link, useNavigate } from 'react-router-dom';
+import { loginWithGoogle, saveAuthSession } from '../../utils/authSession';
+import AuthCard from './AuthCard';
+import GoogleAuthSection, { AuthSeparator } from './GoogleAuthSection';
+import { authStyles as styles } from './authStyles';
 
 const Login = () => {
   const navigate = useNavigate();
+  const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
   const [formData, setFormData] = useState({ Email: '', Password: '' });
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage('');
     setError('');
     setLoading(true);
 
@@ -33,16 +32,13 @@ const Login = () => {
 
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Server returned invalid format on login:', text);
-        throw new Error('System error (server did not return JSON).');
+        throw new Error('Server error (not JSON).');
       }
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Login failed');
 
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('userId', data.userId);
+      saveAuthSession(data);
       navigate('/home');
     } catch (err) {
       setError(err.message);
@@ -51,63 +47,29 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setMessage('');
+  const handleGoogleSuccess = async (credentialResponse) => {
     setError('');
     setLoading(true);
-
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const idToken = await user.getIdToken();
-
-      const response = await fetch('/api/auth/firebase/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idToken,
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-        }),
-      });
-
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Server returned invalid format on Google auth:', text);
-        throw new Error('Server error (not JSON). Check the console.');
-      }
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Google login failed');
-
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('userId', data.userId);
-      localStorage.setItem('firebaseUID', user.uid);
-      localStorage.setItem('firebaseToken', data.token || idToken);
-      localStorage.setItem('userEmail', user.email);
-      localStorage.setItem('userName', user.displayName || '');
+      const data = await loginWithGoogle(credentialResponse.credential);
+      saveAuthSession(data);
       navigate('/home');
     } catch (err) {
-      console.error('Google login error:', err);
-      setError(err.message || 'Google login failed.');
+      setError(err.message || 'Google sign-in failed.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <h2>Login - BeHealthy</h2>
+    <AuthCard title="Login" subtitle="Sign in with email or Google">
 
       <form onSubmit={handleSubmit} style={styles.form}>
         <input
           type="email"
           name="Email"
           placeholder="Email address"
+          value={formData.Email}
           onChange={handleChange}
           required
           style={styles.input}
@@ -116,47 +78,32 @@ const Login = () => {
           type="password"
           name="Password"
           placeholder="Password"
+          value={formData.Password}
           onChange={handleChange}
           required
           style={styles.input}
         />
-        <button type="submit" style={styles.button} disabled={loading}>
-          {loading ? 'Signing in...' : 'Sign in'}
+        <button type="submit" style={{ ...styles.button, backgroundColor: '#6366f1' }} disabled={loading}>
+          {loading ? 'Signing in...' : 'Sign in with email'}
         </button>
       </form>
 
-      <div style={styles.separator}>or</div>
+      <AuthSeparator text="or continue with Google" />
 
-      <button
-        type="button"
-        style={styles.googleButton}
-        onClick={handleGoogleSignIn}
-        disabled={loading}
-      >
-        {loading ? 'Signing in with Google...' : 'Sign in with Google'}
-      </button>
+      <GoogleAuthSection
+        enabled={Boolean(googleClientId)}
+        mode="signin"
+        onSuccess={handleGoogleSuccess}
+        onError={() => setError('Google sign-in was cancelled or failed.')}
+      />
 
-      {message && <p style={{ color: 'green' }}>{message}</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-    </div>
+      {error && <p style={styles.error}>{error}</p>}
+
+      <p style={styles.footer}>
+        No account? <Link to="/register" style={styles.link}>Create one</Link>
+      </p>
+    </AuthCard>
   );
-};
-
-const styles = {
-  container: {
-    maxWidth: '400px',
-    margin: '50px auto',
-    padding: '20px',
-    border: '1px solid #ccc',
-    borderRadius: '8px',
-    fontFamily: 'Arial',
-    textAlign: 'center',
-  },
-  form: { display: 'flex', flexDirection: 'column' },
-  input: { margin: '10px 0', padding: '10px', fontSize: '16px', borderRadius: '4px', border: '1px solid #ccc' },
-  button: { padding: '10px', fontSize: '16px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '10px' },
-  separator: { margin: '20px 0', fontSize: '14px', color: '#666' },
-  googleButton: { padding: '10px', fontSize: '16px', backgroundColor: '#4285F4', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' },
 };
 
 export default Login;

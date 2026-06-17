@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { isProfileComplete, profileFormFromUser, notifyProfileUpdated } from '../../utils/profileUtils';
 
 const GOAL_OPTIONS = [
   { value: 'הרזיה', label: 'הרזיה (Weight loss)' },
@@ -14,22 +15,13 @@ const ACTIVITY_OPTIONS = [
   { value: '1.725', label: 'Very active (6–7 days/week)' },
 ];
 
-const emptyForm = {
-  Full_Name: '',
-  Age: '',
-  Weight: '',
-  Height: '',
-  Gender: '',
-  Goal_Type: 'תחזוקה',
-  Activity_Factor: '1.2',
-  Email: '',
-  Current_Password: '',
-  New_Password: '',
-};
+const emptyForm = profileFormFromUser(null);
 
 const Profile = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const userId = localStorage.getItem('userId');
+  const isFirstTimeSetup = Boolean(location.state?.firstTimeSetup);
 
   const [user, setUser] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -53,28 +45,26 @@ const Profile = () => {
       if (!res.ok) throw new Error(data?.error || 'Failed to load profile.');
       setUser(data);
       setHasPassword(Boolean(data.hasPassword));
-      setForm({
-        Full_Name: data.Full_Name || '',
-        Age: data.Age ?? '',
-        Weight: data.Weight ?? '',
-        Height: data.Height ?? '',
-        Gender: data.Gender || '',
-        Goal_Type: data.Goal_Type || 'תחזוקה',
-        Activity_Factor: String(data.Activity_Factor ?? '1.2'),
-        Email: data.Email || '',
-        Current_Password: '',
-        New_Password: '',
-      });
+      setForm(profileFormFromUser(data));
+      if (isFirstTimeSetup || !isProfileComplete(data)) {
+        setIsEditing(true);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, isFirstTimeSetup]);
 
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    if (isFirstTimeSetup) {
+      setSuccess('Welcome! Please complete your profile details to continue.');
+    }
+  }, [isFirstTimeSetup]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -83,21 +73,11 @@ const Profile = () => {
   };
 
   const handleCancel = () => {
+    if (isFirstTimeSetup || !isProfileComplete(user)) return;
     setIsEditing(false);
     setError('');
     setSuccess('');
-    setForm({
-      Full_Name: user.Full_Name || '',
-      Age: user.Age ?? '',
-      Weight: user.Weight ?? '',
-      Height: user.Height ?? '',
-      Gender: user.Gender || '',
-      Goal_Type: user.Goal_Type || 'תחזוקה',
-      Activity_Factor: String(user.Activity_Factor ?? '1.2'),
-      Email: user.Email || '',
-      Current_Password: '',
-      New_Password: '',
-    });
+    setForm(profileFormFromUser(user));
   };
 
   const handleSave = async () => {
@@ -137,12 +117,24 @@ const Profile = () => {
       if (!res.ok) throw new Error(data.error || 'Failed to save profile.');
 
       setUser(data.user);
-      setHasPassword(true);
+      setHasPassword(Boolean(data.user?.hasPassword));
       setForm((prev) => ({ ...prev, Current_Password: '', New_Password: '' }));
       setIsEditing(false);
+      notifyProfileUpdated();
+
+      if (isProfileComplete(data.user)) {
+        setSuccess(
+          data.Daily_Calorie_Budget
+            ? `Profile saved! Your daily budget is ${data.Daily_Calorie_Budget} kcal. Redirecting...`
+            : 'Profile saved! Redirecting...'
+        );
+        navigate('/home', { replace: true });
+        return;
+      }
+
       setSuccess(
         data.Daily_Calorie_Budget
-          ? `Profile saved. Your daily calorie budget is now ${data.Daily_Calorie_Budget} kcal (calculated automatically).`
+          ? `Profile saved. Your daily calorie budget is now ${data.Daily_Calorie_Budget} kcal.`
           : 'Profile saved.'
       );
     } catch (err) {
@@ -166,7 +158,8 @@ const Profile = () => {
   if (loading) return <div style={styles.page}>Loading profile...</div>;
 
   const budget = user?.Daily_Calorie_Budget;
-  const profileIncomplete = !user?.Age || !user?.Weight || !user?.Height;
+  const profileIncomplete = !isProfileComplete(user);
+  const setupMode = isFirstTimeSetup || profileIncomplete;
 
   return (
     <div style={styles.page}>
@@ -174,7 +167,7 @@ const Profile = () => {
 
       {profileIncomplete && (
         <div style={styles.alert}>
-          Complete your profile (age, weight, height, goal) so we can calculate your daily calorie budget.
+          Complete your profile (name, age, weight, height, gender, goal, email) to unlock Home, Recipes, and Workout.
         </div>
       )}
       {error && <div style={styles.error}>{error}</div>}
@@ -277,11 +270,13 @@ const Profile = () => {
       <div style={styles.actions}>
         {isEditing ? (
           <>
-            <button type="button" style={styles.secondaryBtn} onClick={handleCancel} disabled={saving}>
-              Cancel
-            </button>
+            {!setupMode && (
+              <button type="button" style={styles.secondaryBtn} onClick={handleCancel} disabled={saving}>
+                Cancel
+              </button>
+            )}
             <button type="button" style={styles.primaryBtn} onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving...' : 'Save changes'}
+              {saving ? 'Saving...' : setupMode ? 'Save and continue' : 'Save changes'}
             </button>
           </>
         ) : (
