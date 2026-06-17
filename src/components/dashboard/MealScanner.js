@@ -2,11 +2,56 @@ import React, { useState } from 'react';
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
+const emptyForm = {
+  Meal_Name: '',
+  Description: '',
+  Total_Calories: '',
+  Protein_Grams: '',
+  Carbs_Grams: '',
+  Fats_Grams: '',
+  Ingredients: '',
+};
+
+function isEmptyAnalysis(analysis) {
+  if (!analysis) return true;
+  return (
+    Number(analysis.Total_Calories) === 0 &&
+    Number(analysis.Protein_Grams) === 0 &&
+    Number(analysis.Carbs_Grams) === 0 &&
+    Number(analysis.Fats_Grams) === 0
+  );
+}
+
+function analysisToForm(analysis) {
+  if (!analysis) return { ...emptyForm };
+  return {
+    Meal_Name: analysis.Meal_Name || '',
+    Description: analysis.Description || '',
+    Total_Calories: analysis.Total_Calories ?? '',
+    Protein_Grams: analysis.Protein_Grams ?? '',
+    Carbs_Grams: analysis.Carbs_Grams ?? '',
+    Fats_Grams: analysis.Fats_Grams ?? '',
+    Ingredients: Array.isArray(analysis.Ingredients) ? analysis.Ingredients.join(', ') : '',
+  };
+}
+
 function MealScanner({ onMealLogged }) {
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [mealType, setMealType] = useState('Lunch');
-  const [result, setResult] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [needsManual, setNeedsManual] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+
+  const resetPreview = () => {
+    setPreview(null);
+    setNeedsManual(false);
+    setIsEditing(false);
+    setForm(emptyForm);
+    setError('');
+  };
 
   const handleFileChange = async (event) => {
     const file = event.target.files[0];
@@ -22,18 +67,18 @@ function MealScanner({ onMealLogged }) {
     reader.readAsDataURL(file);
     reader.onloadend = async () => {
       const base64Image = reader.result.split(',')[1];
+      const mimeType = file.type || 'image/jpeg';
       setLoading(true);
       setError('');
-      setResult(null);
+      resetPreview();
 
       try {
         const response = await fetch('/api/meals/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            User_ID: userId,
-            Meal_Type: mealType,
             Image_Base64: base64Image,
+            Image_Mime_Type: mimeType,
           }),
         });
 
@@ -47,8 +92,13 @@ function MealScanner({ onMealLogged }) {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Analysis failed');
 
-        setResult(data.analysis);
-        if (onMealLogged) onMealLogged(data);
+        const analysis = data.analysis;
+        const manual = data.needsManual || isEmptyAnalysis(analysis);
+
+        setPreview(analysis);
+        setNeedsManual(manual);
+        setForm(analysisToForm(analysis));
+        setIsEditing(manual);
       } catch (err) {
         console.error('Error:', err);
         setError(err.message || 'Unable to analyze the meal.');
@@ -59,10 +109,74 @@ function MealScanner({ onMealLogged }) {
     };
   };
 
+  const handleFormChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const openManualEntry = () => {
+    setIsEditing(true);
+    setNeedsManual(true);
+    if (isEmptyAnalysis(preview)) {
+      setForm({ ...emptyForm, Meal_Name: preview?.Meal_Name || '' });
+    }
+  };
+
+  const handleSave = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      setError('Please sign in to save a meal.');
+      return;
+    }
+
+    if (!form.Meal_Name.trim()) {
+      setError('Please enter a meal name.');
+      return;
+    }
+    if (!form.Total_Calories || Number(form.Total_Calories) <= 0) {
+      setError('Please enter calories greater than 0.');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/meals/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          User_ID: userId,
+          Meal_Type: mealType,
+          Meal_Name: form.Meal_Name.trim(),
+          Description: form.Description,
+          Total_Calories: Number(form.Total_Calories),
+          Protein_Grams: Number(form.Protein_Grams) || 0,
+          Carbs_Grams: Number(form.Carbs_Grams) || 0,
+          Fats_Grams: Number(form.Fats_Grams) || 0,
+          Ingredients: form.Ingredients,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to save meal');
+
+      resetPreview();
+      if (onMealLogged) onMealLogged(data);
+    } catch (err) {
+      setError(err.message || 'Unable to save the meal.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const showResults = preview && !isEditing && !needsManual;
+  const showManualPrompt = preview && needsManual && !isEditing;
+  const showEditForm = isEditing;
+
   return (
     <div style={styles.container}>
       <h2 style={styles.title}>Scan a meal</h2>
-      <p style={styles.subtitle}>Gemini analyzes your photo and estimates calories and macros.</p>
+      <p style={styles.subtitle}>Gemini analyzes your photo. Review, edit if needed, then save.</p>
 
       <div style={styles.controls}>
         <label style={styles.label}>
@@ -71,7 +185,7 @@ function MealScanner({ onMealLogged }) {
             value={mealType}
             onChange={(e) => setMealType(e.target.value)}
             style={styles.select}
-            disabled={loading}
+            disabled={loading || saving}
           >
             {MEAL_TYPES.map((type) => (
               <option key={type} value={type}>{type}</option>
@@ -85,7 +199,7 @@ function MealScanner({ onMealLogged }) {
             type="file"
             accept="image/*"
             onChange={handleFileChange}
-            disabled={loading}
+            disabled={loading || saving}
             style={{ display: 'none' }}
           />
         </label>
@@ -93,38 +207,163 @@ function MealScanner({ onMealLogged }) {
 
       {error && <p style={styles.error}>{error}</p>}
 
-      {result && (
+      {showManualPrompt && (
+        <div style={styles.manualCard}>
+          <p style={styles.manualText}>
+            The AI could not estimate nutrition from this photo.
+          </p>
+          <button type="button" style={styles.manualButton} onClick={openManualEntry}>
+            ✏️ Enter nutrition manually
+          </button>
+          <button type="button" style={styles.secondaryButton} onClick={resetPreview}>
+            Try another photo
+          </button>
+        </div>
+      )}
+
+      {showResults && (
         <div style={styles.resultCard}>
-          <h3>{result.Meal_Name || 'Analyzed meal'}</h3>
-          {result.Description && <p style={styles.description}>{result.Description}</p>}
+          <h3>{preview.Meal_Name || 'Analyzed meal'}</h3>
+          {preview.Description && <p style={styles.description}>{preview.Description}</p>}
           <div style={styles.macros}>
             <div style={styles.macroItem}>
-              <span style={styles.macroValue}>{result.Total_Calories}</span>
+              <span style={styles.macroValue}>{preview.Total_Calories}</span>
               <span style={styles.macroLabel}>kcal</span>
             </div>
             <div style={styles.macroItem}>
-              <span style={styles.macroValue}>{result.Protein_Grams}g</span>
+              <span style={styles.macroValue}>{preview.Protein_Grams}g</span>
               <span style={styles.macroLabel}>Protein</span>
             </div>
             <div style={styles.macroItem}>
-              <span style={styles.macroValue}>{result.Carbs_Grams}g</span>
+              <span style={styles.macroValue}>{preview.Carbs_Grams}g</span>
               <span style={styles.macroLabel}>Carbs</span>
             </div>
             <div style={styles.macroItem}>
-              <span style={styles.macroValue}>{result.Fats_Grams}g</span>
+              <span style={styles.macroValue}>{preview.Fats_Grams}g</span>
               <span style={styles.macroLabel}>Fat</span>
             </div>
           </div>
-          {Array.isArray(result.Ingredients) && result.Ingredients.length > 0 && (
+          {Array.isArray(preview.Ingredients) && preview.Ingredients.length > 0 && (
             <div style={styles.ingredients}>
               <strong>Detected ingredients:</strong>
               <ul>
-                {result.Ingredients.map((item) => (
+                {preview.Ingredients.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
             </div>
           )}
+          <div style={styles.actionRow}>
+            <button type="button" style={styles.editButton} onClick={() => setIsEditing(true)}>
+              ✏️ Edit values
+            </button>
+            <button type="button" style={styles.saveButton} onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : 'Save meal'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showEditForm && (
+        <div style={styles.editCard}>
+          <h3 style={styles.editTitle}>
+            {needsManual ? 'Enter meal details' : 'Edit meal details'}
+          </h3>
+          <div style={styles.formGrid}>
+            <label style={styles.field}>
+              Meal name *
+              <input
+                name="Meal_Name"
+                value={form.Meal_Name}
+                onChange={handleFormChange}
+                placeholder="e.g. Grilled chicken salad"
+                style={styles.input}
+              />
+            </label>
+            <label style={styles.field}>
+              Calories (kcal) *
+              <input
+                name="Total_Calories"
+                type="number"
+                min="1"
+                value={form.Total_Calories}
+                onChange={handleFormChange}
+                placeholder="e.g. 450"
+                style={styles.input}
+              />
+            </label>
+            <label style={styles.field}>
+              Protein (g)
+              <input
+                name="Protein_Grams"
+                type="number"
+                min="0"
+                value={form.Protein_Grams}
+                onChange={handleFormChange}
+                placeholder="e.g. 30"
+                style={styles.input}
+              />
+            </label>
+            <label style={styles.field}>
+              Carbs (g)
+              <input
+                name="Carbs_Grams"
+                type="number"
+                min="0"
+                value={form.Carbs_Grams}
+                onChange={handleFormChange}
+                placeholder="e.g. 40"
+                style={styles.input}
+              />
+            </label>
+            <label style={styles.field}>
+              Fat (g)
+              <input
+                name="Fats_Grams"
+                type="number"
+                min="0"
+                value={form.Fats_Grams}
+                onChange={handleFormChange}
+                placeholder="e.g. 15"
+                style={styles.input}
+              />
+            </label>
+            <label style={{ ...styles.field, gridColumn: '1 / -1' }}>
+              Description
+              <input
+                name="Description"
+                value={form.Description}
+                onChange={handleFormChange}
+                placeholder="Optional notes"
+                style={styles.input}
+              />
+            </label>
+            <label style={{ ...styles.field, gridColumn: '1 / -1' }}>
+              Ingredients (comma separated)
+              <input
+                name="Ingredients"
+                value={form.Ingredients}
+                onChange={handleFormChange}
+                placeholder="e.g. chicken, rice, broccoli"
+                style={styles.input}
+              />
+            </label>
+          </div>
+          <div style={styles.actionRow}>
+            {!needsManual && (
+              <button type="button" style={styles.secondaryButton} onClick={() => setIsEditing(false)}>
+                Back to preview
+              </button>
+            )}
+            {needsManual && (
+              <button type="button" style={styles.secondaryButton} onClick={resetPreview}>
+                Cancel
+              </button>
+            )}
+            <button type="button" style={styles.saveButton} onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : 'Save meal'}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -154,7 +393,29 @@ const styles = {
     fontWeight: '600',
   },
   error: { color: '#dc3545', marginTop: '12px' },
+  manualCard: {
+    marginTop: '20px',
+    padding: '20px',
+    backgroundColor: '#fff8e6',
+    borderRadius: '10px',
+    border: '1px solid #ffc107',
+    textAlign: 'center',
+  },
+  manualText: { margin: '0 0 16px 0', color: '#856404', fontSize: '15px' },
+  manualButton: {
+    padding: '12px 20px',
+    backgroundColor: '#ffc107',
+    color: '#212529',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '15px',
+    marginRight: '10px',
+  },
   resultCard: { marginTop: '20px', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '10px' },
+  editCard: { marginTop: '20px', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '10px' },
+  editTitle: { margin: '0 0 16px 0', color: '#212529' },
   description: { color: '#495057', marginBottom: '16px' },
   macros: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' },
   macroItem: {
@@ -167,6 +428,46 @@ const styles = {
   macroValue: { display: 'block', fontSize: '20px', fontWeight: 'bold', color: '#28a745' },
   macroLabel: { display: 'block', fontSize: '12px', color: '#6c757d', marginTop: '4px' },
   ingredients: { marginTop: '16px', fontSize: '14px', color: '#495057' },
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: '12px',
+  },
+  field: { display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '14px', color: '#495057' },
+  input: {
+    padding: '10px',
+    borderRadius: '8px',
+    border: '1px solid #ced4da',
+    fontSize: '14px',
+  },
+  actionRow: { display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '16px' },
+  editButton: {
+    padding: '10px 16px',
+    backgroundColor: '#6c757d',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '600',
+  },
+  saveButton: {
+    padding: '10px 16px',
+    backgroundColor: '#007bff',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    padding: '10px 16px',
+    backgroundColor: '#fff',
+    color: '#495057',
+    border: '1px solid #ced4da',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '600',
+  },
 };
 
 export default MealScanner;
