@@ -11,17 +11,16 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Pages SANS Sidebar/Navbar */}
+        {/* Pages without Sidebar/Navbar */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        
-        {/* Pages AVEC Sidebar/Navbar */}
+
+        {/* Pages with Sidebar/Navbar */}
         <Route path="/home" element={<Layout><Home /></Layout>} />
         <Route path="/profile" element={<Layout><Profile /></Layout>} />
-        {/* 2. AJOUT DE LA ROUTE ICI */}
         <Route path="/MealScanner" element={<Layout><MealScanner /></Layout>} />
-        
-        {/* Redirection par défaut */}
+
+        {/* Default redirect */}
         <Route path="/" element={<Navigate to="/login" />} />
       </Routes>
     </Router>

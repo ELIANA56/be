@@ -9,11 +9,11 @@ const Sidebar = () => {
     <div style={styles.sidebar}>
       <h2 style={styles.logo}>BeHealthy</h2>
       <ul style={styles.menu}>
-        <li onClick={() => navigate('/home')} style={styles.item}>🏠 Accueil</li>
-        <li onClick={() => navigate('/profile')} style={styles.item}>👤 Profil</li>
-        <li onClick={() => navigate('/MealScanner')} style={styles.item}>📷 Scanner Repas</li>
-        <li onClick={() => navigate('/recipes')} style={styles.item}>🍳 Recettes</li>
-        <li onClick={() => navigate('/knowledge')} style={styles.item}>📚 Centre de Savoir</li>
+        <li onClick={() => navigate('/home')} style={styles.item}>🏠 Home</li>
+        <li onClick={() => navigate('/profile')} style={styles.item}>👤 Profile</li>
+        <li onClick={() => navigate('/MealScanner')} style={styles.item}>📷 Meal Scanner</li>
+        <li onClick={() => navigate('/recipes')} style={styles.item}>🍳 Recipes</li>
+        <li onClick={() => navigate('/knowledge')} style={styles.item}>📚 Knowledge Center</li>
       </ul>
     </div>
   );

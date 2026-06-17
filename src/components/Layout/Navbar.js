@@ -12,8 +12,8 @@ const Navbar = () => {
 
   return (
     <nav style={styles.navbar}>
-      <div style={styles.title}>Mon Tableau de Bord</div>
-      <button onClick={handleLogout} style={styles.logoutBtn}>Déconnexion</button>
+      <div style={styles.title}>My Dashboard</div>
+      <button onClick={handleLogout} style={styles.logoutBtn}>Log out</button>
     </nav>
   );
 };

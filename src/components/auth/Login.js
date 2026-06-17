@@ -18,7 +18,6 @@ const Login = () => {
     });
   };
 
-  // 1. התחברות רגילה (אימייל וסיסמה)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
@@ -26,19 +25,17 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // שימוש בנתיב יחסי בזכות ה-Proxy
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
-      // בדיקה אם השרת החזיר HTML בטעות
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
-        console.error("שרת החזיר פורמט לא תקין בהתחברות:", text);
-        throw new Error("שגיאת מערכת (השרת לא החזיר JSON).");
+        console.error('Server returned invalid format on login:', text);
+        throw new Error('System error (server did not return JSON).');
       }
 
       const data = await response.json();
@@ -54,7 +51,6 @@ const Login = () => {
     }
   };
 
-  // 2. התחברות עם גוגל (Firebase)
   const handleGoogleSignIn = async () => {
     setMessage('');
     setError('');
@@ -66,7 +62,6 @@ const Login = () => {
       const user = result.user;
       const idToken = await user.getIdToken();
 
-      // שימוש בנתיב יחסי בזכות ה-Proxy
       const response = await fetch('/api/auth/firebase/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,12 +74,11 @@ const Login = () => {
         }),
       });
 
-      // בדיקה חכמה לפני המרה ל-JSON למניעת קריסות
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
-        console.error("שרת החזיר פורמט לא תקין באימות גוגל:", text);
-        throw new Error("השרת החזיר שגיאה (לא JSON). בדקי את ה-Console.");
+        console.error('Server returned invalid format on Google auth:', text);
+        throw new Error('Server error (not JSON). Check the console.');
       }
 
       const data = await response.json();
@@ -98,7 +92,7 @@ const Login = () => {
       localStorage.setItem('userName', user.displayName || '');
       navigate('/home');
     } catch (err) {
-      console.error("פרטי השגיאה המלאים:", err);
+      console.error('Google login error:', err);
       setError(err.message || 'Google login failed.');
     } finally {
       setLoading(false);
@@ -107,13 +101,13 @@ const Login = () => {
 
   return (
     <div style={styles.container}>
-      <h2>Connexion - BeHealthy</h2>
+      <h2>Login - BeHealthy</h2>
 
       <form onSubmit={handleSubmit} style={styles.form}>
         <input
           type="email"
           name="Email"
-          placeholder="Adresse Email"
+          placeholder="Email address"
           onChange={handleChange}
           required
           style={styles.input}
@@ -121,17 +115,17 @@ const Login = () => {
         <input
           type="password"
           name="Password"
-          placeholder="Mot de passe"
+          placeholder="Password"
           onChange={handleChange}
           required
           style={styles.input}
         />
         <button type="submit" style={styles.button} disabled={loading}>
-          {loading ? 'Connexion...' : 'Se connecter'}
+          {loading ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
 
-      <div style={styles.separator}>ou</div>
+      <div style={styles.separator}>or</div>
 
       <button
         type="button"
@@ -139,7 +133,7 @@ const Login = () => {
         onClick={handleGoogleSignIn}
         disabled={loading}
       >
-        {loading ? 'Connexion Google...' : 'Se connecter avec Google'}
+        {loading ? 'Signing in with Google...' : 'Sign in with Google'}
       </button>
 
       {message && <p style={{ color: 'green' }}>{message}</p>}

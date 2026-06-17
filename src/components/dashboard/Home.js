@@ -2,15 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import MealScanner from './MealScanner';
 
 const MEAL_TYPE_LABELS = {
-  Breakfast: 'Petit-déjeuner',
-  Lunch: 'Déjeuner',
-  Dinner: 'Dîner',
-  Snack: 'Collation',
+  Breakfast: 'Breakfast',
+  Lunch: 'Lunch',
+  Dinner: 'Dinner',
+  Snack: 'Snack',
 };
 
 const formatDate = (timestamp) => {
   if (!timestamp) return '';
-  return new Date(timestamp).toLocaleString('fr-FR', {
+  return new Date(timestamp).toLocaleString('en-US', {
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
@@ -38,13 +38,17 @@ const Home = () => {
         fetch(`/api/meals/user/${userId}`),
       ]);
 
-      const statsData = await statsRes.json();
-      const mealsData = await mealsRes.json();
+      const statsData = statsRes.headers.get('content-type')?.includes('application/json')
+        ? await statsRes.json()
+        : {};
+      const mealsData = mealsRes.headers.get('content-type')?.includes('application/json')
+        ? await mealsRes.json()
+        : [];
 
       setStats(statsData);
       setMeals(Array.isArray(mealsData) ? mealsData : []);
     } catch (err) {
-      console.error('Erreur lors du chargement du tableau de bord:', err);
+      console.error('Error loading dashboard:', err);
     } finally {
       setLoading(false);
     }
@@ -63,29 +67,29 @@ const Home = () => {
     ? Math.min(Math.round((stats.consumed / stats.budget) * 100), 100)
     : 0;
 
-  if (loading) return <div>Chargement de vos données...</div>;
+  if (loading) return <div>Loading your data...</div>;
 
   return (
     <div style={styles.page}>
-      <h1 style={styles.heading}>Tableau de bord</h1>
+      <h1 style={styles.heading}>Dashboard</h1>
 
       <div style={styles.grid}>
         <div style={styles.card}>
-          <h3 style={styles.cardTitle}>Calories aujourd&apos;hui</h3>
+          <h3 style={styles.cardTitle}>Calories today</h3>
           <p style={styles.bigValue}>
             {stats.consumed} <span style={styles.unit}>/ {stats.budget || 2000} kcal</span>
           </p>
           <div style={styles.progressTrack}>
             <div style={{ ...styles.progressFill, width: `${progress}%` }} />
           </div>
-          <p style={styles.remaining}>{remaining} kcal restantes</p>
+          <p style={styles.remaining}>{remaining} kcal remaining</p>
         </div>
 
         <div style={styles.summaryCard}>
-          <h3 style={styles.cardTitle}>Résumé du jour</h3>
-          <p style={styles.summaryLine}><strong>{meals.length}</strong> repas enregistrés au total</p>
+          <h3 style={styles.cardTitle}>Today&apos;s summary</h3>
+          <p style={styles.summaryLine}><strong>{meals.length}</strong> meals logged in total</p>
           <p style={styles.summaryLine}>
-            <strong>{meals.filter((m) => new Date(m.Timestamp).toDateString() === new Date().toDateString()).length}</strong> repas scannés aujourd&apos;hui
+            <strong>{meals.filter((m) => new Date(m.Timestamp).toDateString() === new Date().toDateString()).length}</strong> meals scanned today
           </p>
         </div>
       </div>
@@ -93,10 +97,10 @@ const Home = () => {
       <MealScanner onMealLogged={handleMealLogged} />
 
       <section style={styles.historySection}>
-        <h2 style={styles.sectionTitle}>Historique des repas</h2>
+        <h2 style={styles.sectionTitle}>Meal history</h2>
 
         {meals.length === 0 ? (
-          <p style={styles.empty}>Aucun repas scanné pour le moment. Utilisez le scanner ci-dessus.</p>
+          <p style={styles.empty}>No meals scanned yet. Use the scanner above.</p>
         ) : (
           <div style={styles.historyList}>
             {meals.map((meal) => {
@@ -106,7 +110,7 @@ const Home = () => {
                   <div style={styles.mealHeader}>
                     <div>
                       <h3 style={styles.mealName}>
-                        {meal.Food_Name || 'Repas sans nom'}
+                        {meal.Food_Name || 'Unnamed meal'}
                       </h3>
                       <p style={styles.mealMeta}>
                         {MEAL_TYPE_LABELS[meal.Meal_Type] || meal.Meal_Type} · {formatDate(meal.Timestamp)}
@@ -116,9 +120,9 @@ const Home = () => {
                   </div>
 
                   <div style={styles.mealMacros}>
-                    <span>P {meal.Protein_Grams}g</span>
-                    <span>G {meal.Carbs_Grams}g</span>
-                    <span>L {meal.Fats_Grams}g</span>
+                    <span>Protein {meal.Protein_Grams}g</span>
+                    <span>Carbs {meal.Carbs_Grams}g</span>
+                    <span>Fat {meal.Fats_Grams}g</span>
                   </div>
 
                   {meal.Description && (
@@ -133,7 +137,7 @@ const Home = () => {
                       style={styles.toggleButton}
                       onClick={() => setExpandedMealId(isExpanded ? null : meal.Meal_ID)}
                     >
-                      {isExpanded ? 'Voir moins' : 'Voir tous les détails'}
+                      {isExpanded ? 'Show less' : 'Show all details'}
                     </button>
                   )}
                 </article>

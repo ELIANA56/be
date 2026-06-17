@@ -14,7 +14,7 @@ function MealScanner({ onMealLogged }) {
 
     const userId = localStorage.getItem('userId');
     if (!userId) {
-      setError('Veuillez vous connecter pour scanner un repas.');
+      setError('Please sign in to scan a meal.');
       return;
     }
 
@@ -37,14 +37,21 @@ function MealScanner({ onMealLogged }) {
           }),
         });
 
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Non-JSON server response:', text.slice(0, 200));
+          throw new Error('Server error. Try again with a smaller photo.');
+        }
+
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Analyse échouée');
+        if (!response.ok) throw new Error(data.error || 'Analysis failed');
 
         setResult(data.analysis);
         if (onMealLogged) onMealLogged(data);
       } catch (err) {
-        console.error('Erreur :', err);
-        setError(err.message || 'Impossible d\'analyser le repas.');
+        console.error('Error:', err);
+        setError(err.message || 'Unable to analyze the meal.');
       } finally {
         setLoading(false);
         event.target.value = '';
@@ -54,12 +61,12 @@ function MealScanner({ onMealLogged }) {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>Scanner un repas</h2>
-      <p style={styles.subtitle}>Gemini analyse votre photo et estime les calories et macros.</p>
+      <h2 style={styles.title}>Scan a meal</h2>
+      <p style={styles.subtitle}>Gemini analyzes your photo and estimates calories and macros.</p>
 
       <div style={styles.controls}>
         <label style={styles.label}>
-          Type de repas
+          Meal type
           <select
             value={mealType}
             onChange={(e) => setMealType(e.target.value)}
@@ -73,7 +80,7 @@ function MealScanner({ onMealLogged }) {
         </label>
 
         <label style={styles.uploadButton}>
-          {loading ? 'Analyse en cours...' : '📷 Choisir une photo'}
+          {loading ? 'Analyzing...' : '📷 Choose a photo'}
           <input
             type="file"
             accept="image/*"
@@ -88,7 +95,7 @@ function MealScanner({ onMealLogged }) {
 
       {result && (
         <div style={styles.resultCard}>
-          <h3>{result.Meal_Name || 'Repas analysé'}</h3>
+          <h3>{result.Meal_Name || 'Analyzed meal'}</h3>
           {result.Description && <p style={styles.description}>{result.Description}</p>}
           <div style={styles.macros}>
             <div style={styles.macroItem}>
@@ -97,20 +104,20 @@ function MealScanner({ onMealLogged }) {
             </div>
             <div style={styles.macroItem}>
               <span style={styles.macroValue}>{result.Protein_Grams}g</span>
-              <span style={styles.macroLabel}>Protéines</span>
+              <span style={styles.macroLabel}>Protein</span>
             </div>
             <div style={styles.macroItem}>
               <span style={styles.macroValue}>{result.Carbs_Grams}g</span>
-              <span style={styles.macroLabel}>Glucides</span>
+              <span style={styles.macroLabel}>Carbs</span>
             </div>
             <div style={styles.macroItem}>
               <span style={styles.macroValue}>{result.Fats_Grams}g</span>
-              <span style={styles.macroLabel}>Lipides</span>
+              <span style={styles.macroLabel}>Fat</span>
             </div>
           </div>
           {Array.isArray(result.Ingredients) && result.Ingredients.length > 0 && (
             <div style={styles.ingredients}>
-              <strong>Ingrédients détectés :</strong>
+              <strong>Detected ingredients:</strong>
               <ul>
                 {result.Ingredients.map((item) => (
                   <li key={item}>{item}</li>
