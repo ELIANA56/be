@@ -1,3 +1,6 @@
+/**
+ * INDEX.JS — Boots the React app and mounts it into the HTML page (#root).
+ */
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';

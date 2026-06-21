@@ -1,3 +1,6 @@
+/**
+ * AUTH CARD — Shared white box layout for Login and Register pages.
+ */
 import React from 'react';
 import { authStyles as styles } from './authStyles';
 

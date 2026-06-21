@@ -1,3 +1,7 @@
+/**
+ * NAVBAR — Top bar with page title and Log out button.
+ * Log out clears localStorage and sends you to /login.
+ */
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -6,7 +10,6 @@ const PAGE_TITLES = {
   '/workout': 'Workout',
   '/recipes': 'Recipes',
   '/profile': 'Profile',
-  '/knowledge': 'Knowledge Center',
 };
 
 const Navbar = () => {

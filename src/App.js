@@ -1,3 +1,13 @@
+/**
+ * APP.JS — Main entry for routing (which page shows for each URL).
+ *
+ * Public pages: /login, /register
+ * Protected pages: /home, /profile, /workout, /recipes
+ *   → wrapped in ProtectedRoute (must be logged in)
+ *   → most also use Layout (sidebar + navbar)
+ *
+ * GoogleOAuthProvider wraps the app so the Google sign-in button works.
+ */
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -7,7 +17,6 @@ import Home from './components/dashboard/Home';
 import Profile from './components/auth/Profile';
 import Recipes from './components/dashboard/Recipes';
 import Workout from './components/dashboard/Workout';
-import Knowledge from './components/dashboard/Knowledge';
 import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
@@ -35,10 +44,6 @@ function App() {
           <Route
             path="/recipes"
             element={<ProtectedRoute><Layout><Recipes /></Layout></ProtectedRoute>}
-          />
-          <Route
-            path="/knowledge"
-            element={<ProtectedRoute><Layout><Knowledge /></Layout></ProtectedRoute>}
           />
           <Route path="/" element={<Navigate to="/login" />} />
         </Routes>

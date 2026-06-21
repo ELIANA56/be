@@ -1,13 +1,23 @@
+/**
+ * AUTH SESSION — Keeps the user logged in between page refreshes.
+ *
+ * After login/register, we save token + userId in localStorage.
+ * Other pages read userId from there to know who is logged in.
+ */
+
+/** Save login data to browser storage */
 export function saveAuthSession({ token, userId }) {
   localStorage.setItem('token', token);
   localStorage.setItem('userId', String(userId));
 }
 
+/** Remove login data (used on logout or account delete) */
 export function clearAuthSession() {
   localStorage.removeItem('token');
   localStorage.removeItem('userId');
 }
 
+/** Send Google credential to our server and return token + userId */
 export async function loginWithGoogle(credential) {
   const response = await fetch('/api/auth/google', {
     method: 'POST',

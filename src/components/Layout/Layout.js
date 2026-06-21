@@ -1,3 +1,6 @@
+/**
+ * LAYOUT — Shell for logged-in pages: sidebar on the left, navbar on top, content in the middle.
+ */
 import React from 'react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';

@@ -1,3 +1,9 @@
+/**
+ * RECIPES PAGE — AI recipe generator from fridge ingredients.
+ *
+ * Pick what you have → AI creates a recipe matching your meal calorie target.
+ * Save recipes to your account; view, edit, or delete them later.
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];

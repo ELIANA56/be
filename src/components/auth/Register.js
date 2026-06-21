@@ -1,3 +1,7 @@
+/**
+ * REGISTER PAGE — Create account with full profile (email path) or Google.
+ * Email register → /home. Google register → /profile (finish missing fields).
+ */
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginWithGoogle, saveAuthSession } from '../../utils/authSession';

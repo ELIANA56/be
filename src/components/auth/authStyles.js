@@ -1,3 +1,6 @@
+/**
+ * AUTH STYLES — Shared look for login/register forms (colors, spacing, inputs).
+ */
 export const authStyles = {
   container: {
     maxWidth: '420px',

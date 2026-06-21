@@ -1,3 +1,7 @@
+/**
+ * GOOGLE AUTH — "Sign in with Google" button and optional "or" divider.
+ * Needs REACT_APP_GOOGLE_CLIENT_ID in .env to show the button.
+ */
 import React from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { authStyles as styles } from './authStyles';

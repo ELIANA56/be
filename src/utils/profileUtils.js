@@ -1,3 +1,11 @@
+/**
+ * PROFILE UTILS — Helpers for the profile setup flow.
+ *
+ * New Google users only have name + email. We require age, weight, height,
+ * gender, and goal before they can use the rest of the app.
+ */
+
+/** Returns true when all required profile fields are filled */
 export function isProfileComplete(user) {
   if (!user) return false;
   return Boolean(
@@ -11,6 +19,7 @@ export function isProfileComplete(user) {
   );
 }
 
+/** Build form default values from a user object from the API */
 export function profileFormFromUser(user) {
   return {
     Full_Name: user?.Full_Name || '',
@@ -26,6 +35,7 @@ export function profileFormFromUser(user) {
   };
 }
 
+/** Custom browser event — ProtectedRoute listens so it re-checks profile after save */
 export const PROFILE_UPDATED_EVENT = 'profile-updated';
 
 export function notifyProfileUpdated() {

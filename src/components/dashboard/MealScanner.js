@@ -1,3 +1,12 @@
+/**
+ * MEAL SCANNER — Log food for today.
+ *
+ * Two modes:
+ * 1. Photo — AI analyzes the image and estimates nutrition (you confirm before save)
+ * 2. Manual — type name, calories, macros yourself
+ *
+ * Rule: only one Breakfast, Lunch, Dinner per day (Snack can be logged multiple times).
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import { getToday } from '../../utils/dateFormat';
 

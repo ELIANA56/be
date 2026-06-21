@@ -1,3 +1,7 @@
+/**
+ * LOGIN PAGE — Sign in with email/password or Google.
+ * On success: save token + userId, go to /home.
+ */
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginWithGoogle, saveAuthSession } from '../../utils/authSession';

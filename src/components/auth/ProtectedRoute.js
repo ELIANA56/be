@@ -1,3 +1,10 @@
+/**
+ * PROTECTED ROUTE — Gatekeeper for pages that need login.
+ *
+ * 1. No userId in localStorage → send to /login
+ * 2. Profile incomplete → send to /profile (first-time setup)
+ * 3. Otherwise → show the page (children)
+ */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { isProfileComplete, PROFILE_UPDATED_EVENT } from '../../utils/profileUtils';

@@ -1,4 +1,11 @@
-/** Local calendar date as YYYY-MM-DD (avoids UTC off-by-one bugs). */
+/**
+ * DATE FORMAT — Work with "today" using your local timezone.
+ *
+ * JavaScript Date can shift a day when converting to UTC.
+ * These helpers always use the calendar date on your computer.
+ */
+
+/** Today's date as YYYY-MM-DD (local, not UTC) */
 export function getToday() {
   const d = new Date();
   const y = d.getFullYear();

@@ -1,3 +1,7 @@
+/**
+ * SIDEBAR — Left menu with links to Home, Workout, Recipes, Profile.
+ * Highlights the page you are currently on.
+ */
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -6,7 +10,6 @@ const NAV_ITEMS = [
   { path: '/workout', label: 'Workout', icon: '💪' },
   { path: '/recipes', label: 'Recipes', icon: '🍳' },
   { path: '/profile', label: 'Profile', icon: '👤' },
-  { path: '/knowledge', label: 'Knowledge', icon: '📚' },
 ];
 
 const Sidebar = () => {

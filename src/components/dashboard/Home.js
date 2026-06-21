@@ -1,3 +1,9 @@
+/**
+ * HOME (DASHBOARD) — Main page after login.
+ *
+ * Shows: calories eaten vs budget, protein, today's meals.
+ * Uses MealScanner to log new meals. Edit/delete meals logged today.
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import MealScanner from './MealScanner';
 import { getToday, formatLogDate, normalizeLogDate, isToday } from '../../utils/dateFormat';

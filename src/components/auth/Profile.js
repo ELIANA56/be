@@ -1,3 +1,11 @@
+/**
+ * PROFILE PAGE — View and edit user details.
+ *
+ * - Loads data from GET /api/user/:userId
+ * - Saves with PUT /api/user/:userId (server recalculates calorie budget)
+ * - First-time users must complete all fields before using the app
+ * - Danger zone: delete account (DELETE /api/user/:userId)
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isProfileComplete, profileFormFromUser, notifyProfileUpdated } from '../../utils/profileUtils';

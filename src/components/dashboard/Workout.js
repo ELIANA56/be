@@ -1,3 +1,9 @@
+/**
+ * WORKOUT PAGE — Log exercise sessions.
+ *
+ * Server estimates calories burned from type, duration, intensity, and your weight.
+ * Workouts increase today's calorie budget (60% of burned calories) and protein target.
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import { getToday, formatLogDate } from '../../utils/dateFormat';
 
